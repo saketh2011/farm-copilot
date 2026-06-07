@@ -169,65 +169,64 @@ async function executeToolCall(name, args) {
 }
 
 export async function POST(request) {
-  const { messages } = await request.json();
+  try {
+    const { messages } = await request.json();
 
-  const systemPrompt = `You are CropPilot, an expert AI farming co-pilot. You help farmers make precise, data-driven decisions about their crops.
+    const systemPrompt = `You are CropPilot, an expert AI farming co-pilot. You help farmers make precise, data-driven decisions about their crops. You have access to real-time weather data, soil sensors, market prices, and agronomic knowledge. Be direct, practical, and give specific actionable recommendations with exact numbers.`;
 
-You have access to real-time weather data, soil sensors, market prices, and agronomic knowledge.
+    const groqMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-Your personality: Direct, practical, confident. You give specific actionable recommendations — not vague advice. When you have data, you use it to give exact numbers (e.g. "irrigate with 18mm of water tomorrow morning" not "you might want to water your crops").
-
-Always:
-- Use tools to get real data before giving advice
-- Give a clear action recommendation at the end
-- Mention specific numbers (water amounts, temperatures, prices)
-- Be concise but complete
-- Format responses clearly with sections when needed
-
-If the farmer mentions a location, use it for weather data. If no location given, ask for one or use general agronomic knowledge.`;
-
-  const groqMessages = [{ role: "system", content: systemPrompt }, ...messages];
-
-  let response = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: groqMessages,
-    tools,
-    tool_choice: "auto",
-    max_tokens: 1500,
-  });
-
-  let assistantMessage = response.choices[0].message;
-  const toolResults = [];
-
-  while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-    const toolCallResults = [];
-    for (const tc of assistantMessage.tool_calls) {
-      const args = JSON.parse(tc.function.arguments);
-      const result = await executeToolCall(tc.function.name, args);
-      toolCallResults.push({
-        tool_call_id: tc.id,
-        role: "tool",
-        name: tc.function.name,
-        content: JSON.stringify(result),
-      });
-      toolResults.push({ name: tc.function.name, args, result });
-    }
-
-    groqMessages.push(assistantMessage);
-    groqMessages.push(...toolCallResults);
-
-    response = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+    let response = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
       messages: groqMessages,
       tools,
       tool_choice: "auto",
-      max_tokens: 1500,
+      max_tokens: 1024,
     });
-    assistantMessage = response.choices[0].message;
-  }
 
-  return Response.json({
-    message: assistantMessage.content,
-    toolsUsed: toolResults,
-  });
+    let assistantMessage = response.choices[0].message;
+    const toolResults = [];
+
+    let iterations = 0;
+    while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0 && iterations < 3) {
+      iterations++;
+      const toolCallResults = [];
+      for (const tc of assistantMessage.tool_calls) {
+        const args = JSON.parse(tc.function.arguments);
+        const result = await executeToolCall(tc.function.name, args);
+        toolCallResults.push({
+          tool_call_id: tc.id,
+          role: "tool",
+          name: tc.function.name,
+          content: JSON.stringify(result),
+        });
+        toolResults.push({ name: tc.function.name, args, result });
+      }
+
+      groqMessages.push(assistantMessage);
+      groqMessages.push(...toolCallResults);
+
+      response = await groq.chat.completions.create({
+        model: "llama-3.1-8b-instant",
+        messages: groqMessages,
+        tools,
+        tool_choice: "auto",
+        max_tokens: 1024,
+      });
+      assistantMessage = response.choices[0].message;
+    }
+
+    return Response.json({
+      message: assistantMessage.content,
+      toolsUsed: toolResults,
+    });
+
+  } catch (err) {
+    console.error("CropPilot API error:", err);
+    const isRateLimit = err?.status === 429 || err?.message?.includes("rate");
+    return Response.json(
+      { message: isRateLimit ? "Too many requests — please wait 30 seconds and try again." : "Something went wrong. Please try again." },
+      { status: 200 }
+    );
+  }
 }
