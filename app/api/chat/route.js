@@ -268,22 +268,22 @@ export async function POST(request) {
         groqMessages.push({
           role: "user",
           content: [
-            {
-              type: "image_url",
-              image_url: { url: msg.image },
-            },
+            { type: "image_url", image_url: { url: msg.image } },
             { type: "text", text: msg.content },
           ],
         });
       } else {
-        groqMessages.push(msg);
+        groqMessages.push({
+          role: msg.role,
+          content: msg.content,
+        });
       }
     }
 
     let response = await groq.chat.completions.create({
       model: groqMessages.some((m) => Array.isArray(m.content))
         ? "meta-llama/llama-4-scout-17b-16e-instruct"
-        : "llama-3.1-8b-instant",
+        : "llama-3.3-70b-versatile",
       messages: groqMessages,
       tools: groqMessages.some((m) => Array.isArray(m.content))
         ? undefined

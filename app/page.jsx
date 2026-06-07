@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import ChatMessage from "./components/ChatMessage";
 import ToolBadge from "./components/ToolBadge";
 import Sidebar from "./components/Sidebar";
+import Dashboard from "./components/Dashboard";
 
 const SUGGESTED_PROMPTS = [
   {
@@ -33,6 +34,7 @@ export default function Home() {
   const inputRef = useRef(null);
   const [pendingImage, setPendingImage] = useState(null);
   const fileInputRef = useRef(null);
+  const [dashboardData, setDashboardData] = useState(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -63,6 +65,13 @@ export default function Home() {
         { role: "assistant", content: data.message },
       ]);
       setToolsUsed(data.toolsUsed || []);
+      const weather = data.toolsUsed?.find(
+        (t) => t.name === "get_weather",
+      )?.result;
+      const soil = data.toolsUsed?.find(
+        (t) => t.name === "get_soil_data",
+      )?.result;
+      if (weather || soil) setDashboardData({ weather, soil });
     } catch {
       setMessages([
         ...newMessages,
@@ -141,6 +150,8 @@ export default function Home() {
           </div>
           <div className="status-dot" title="Online" />
         </header>
+
+        <Dashboard data={dashboardData} />
 
         <div className="chat-area">
           {messages.length === 0 && (
