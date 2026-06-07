@@ -13,7 +13,10 @@ const tools = [
         properties: {
           latitude: { type: "number", description: "Latitude of the farm" },
           longitude: { type: "number", description: "Longitude of the farm" },
-          location_name: { type: "string", description: "Name of the location" },
+          location_name: {
+            type: "string",
+            description: "Name of the location",
+          },
         },
         required: ["latitude", "longitude", "location_name"],
       },
@@ -23,7 +26,8 @@ const tools = [
     type: "function",
     function: {
       name: "get_soil_data",
-      description: "Get soil moisture, temperature, pH, and nutrient levels for a location",
+      description:
+        "Get soil moisture, temperature, pH, and nutrient levels for a location",
       parameters: {
         type: "object",
         properties: {
@@ -39,7 +43,8 @@ const tools = [
     type: "function",
     function: {
       name: "get_crop_advice",
-      description: "Get expert agronomic advice for a specific crop, disease, pest or farming issue",
+      description:
+        "Get expert agronomic advice for a specific crop, disease, pest or farming issue",
       parameters: {
         type: "object",
         properties: {
@@ -71,7 +76,8 @@ const tools = [
     type: "function",
     function: {
       name: "get_irrigation_recommendation",
-      description: "Calculate precise irrigation needs based on crop, weather, and soil data",
+      description:
+        "Calculate precise irrigation needs based on crop, weather, and soil data",
       parameters: {
         type: "object",
         properties: {
@@ -82,6 +88,24 @@ const tools = [
           rainfall_last_7days: { type: "number" },
         },
         required: ["crop", "soil_moisture", "temperature"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "analyze_crop_image",
+      description:
+        "Analyze an uploaded image of a crop to identify diseases, pests, or health issues",
+      parameters: {
+        type: "object",
+        properties: {
+          crop_type: {
+            type: "string",
+            description: "Type of crop in the image if known",
+          },
+        },
+        required: [],
       },
     },
   },
@@ -115,8 +139,10 @@ async function executeToolCall(name, args) {
   }
 
   if (name === "get_soil_data") {
-    const seed = Math.abs(Math.sin(args.latitude * 100 + args.longitude * 100)) * 1000;
-    const r = (min, max) => +(min + ((seed % 100) / 100) * (max - min)).toFixed(1);
+    const seed =
+      Math.abs(Math.sin(args.latitude * 100 + args.longitude * 100)) * 1000;
+    const r = (min, max) =>
+      +(min + ((seed % 100) / 100) * (max - min)).toFixed(1);
     return {
       soil_moisture: r(25, 65),
       soil_temperature: r(18, 28),
@@ -125,7 +151,9 @@ async function executeToolCall(name, args) {
       phosphorus_ppm: r(8, 30),
       potassium_ppm: r(80, 200),
       organic_matter_percent: r(1.5, 4.5),
-      texture: ["sandy loam", "clay loam", "silt loam", "loamy sand"][Math.floor(seed % 4)],
+      texture: ["sandy loam", "clay loam", "silt loam", "loamy sand"][
+        Math.floor(seed % 4)
+      ],
     };
   }
 
@@ -135,33 +163,92 @@ async function executeToolCall(name, args) {
 
   if (name === "get_market_prices") {
     const prices = {
-      wheat: { current: 245, unit: "$/ton", trend: "+2.3%", forecast: "Prices expected to rise 5-8% over next 30 days" },
-      corn: { current: 185, unit: "$/ton", trend: "-1.1%", forecast: "Slight downward pressure, consider selling within 2 weeks" },
-      rice: { current: 420, unit: "$/ton", trend: "+4.7%", forecast: "Strong upward trend, holding inventory recommended" },
-      soybean: { current: 520, unit: "$/ton", trend: "+1.8%", forecast: "Stable with slight upside" },
-      cotton: { current: 1.82, unit: "$/lb", trend: "-0.5%", forecast: "Flat market, sell now or wait for seasonal uptick in 6 weeks" },
-      tomato: { current: 890, unit: "$/ton", trend: "+6.2%", forecast: "Peak season pricing, sell immediately" },
-      potato: { current: 310, unit: "$/ton", trend: "+0.9%", forecast: "Stable, no urgency to sell" },
-      default: { current: 350, unit: "$/ton", trend: "+1.5%", forecast: "Market data estimated based on commodity averages" },
+      wheat: {
+        current: 245,
+        unit: "$/ton",
+        trend: "+2.3%",
+        forecast: "Prices expected to rise 5-8% over next 30 days",
+      },
+      corn: {
+        current: 185,
+        unit: "$/ton",
+        trend: "-1.1%",
+        forecast: "Slight downward pressure, consider selling within 2 weeks",
+      },
+      rice: {
+        current: 420,
+        unit: "$/ton",
+        trend: "+4.7%",
+        forecast: "Strong upward trend, holding inventory recommended",
+      },
+      soybean: {
+        current: 520,
+        unit: "$/ton",
+        trend: "+1.8%",
+        forecast: "Stable with slight upside",
+      },
+      cotton: {
+        current: 1.82,
+        unit: "$/lb",
+        trend: "-0.5%",
+        forecast:
+          "Flat market, sell now or wait for seasonal uptick in 6 weeks",
+      },
+      tomato: {
+        current: 890,
+        unit: "$/ton",
+        trend: "+6.2%",
+        forecast: "Peak season pricing, sell immediately",
+      },
+      potato: {
+        current: 310,
+        unit: "$/ton",
+        trend: "+0.9%",
+        forecast: "Stable, no urgency to sell",
+      },
+      default: {
+        current: 350,
+        unit: "$/ton",
+        trend: "+1.5%",
+        forecast: "Market data estimated based on commodity averages",
+      },
     };
     const data = prices[args.crop.toLowerCase()] || prices.default;
     return { crop: args.crop, region: args.region || "Global", ...data };
   }
 
   if (name === "get_irrigation_recommendation") {
-    const { crop, soil_moisture, temperature, rainfall_last_7days = 0, growth_stage = "vegetative" } = args;
+    const {
+      crop,
+      soil_moisture,
+      temperature,
+      rainfall_last_7days = 0,
+      growth_stage = "vegetative",
+    } = args;
     const deficit = Math.max(0, 50 - soil_moisture);
     const heat_factor = temperature > 30 ? 1.3 : temperature > 25 ? 1.1 : 1.0;
     const rain_credit = Math.min(rainfall_last_7days * 0.8, 20);
-    const water_needed = Math.max(0, +(deficit * 0.4 * heat_factor - rain_credit).toFixed(1));
+    const water_needed = Math.max(
+      0,
+      +(deficit * 0.4 * heat_factor - rain_credit).toFixed(1),
+    );
     return {
-      crop, growth_stage,
+      crop,
+      growth_stage,
       current_soil_moisture: soil_moisture,
       water_needed_mm: water_needed,
       irrigate_today: water_needed > 5,
-      urgency: water_needed > 20 ? "high" : water_needed > 10 ? "medium" : "low",
+      urgency:
+        water_needed > 20 ? "high" : water_needed > 10 ? "medium" : "low",
       recommended_time: "Early morning (5-7 AM) to minimize evaporation",
       next_check_hours: water_needed > 15 ? 24 : 48,
+    };
+  }
+
+  if (name === "analyze_crop_image") {
+    return {
+      analysis_requested: true,
+      note: "Image analysis will be handled by vision model",
     };
   }
 
@@ -170,17 +257,40 @@ async function executeToolCall(name, args) {
 
 export async function POST(request) {
   try {
-    const { messages } = await request.json();
+    const { messages, image } = await request.json();
 
-    const systemPrompt = `You are CropPilot, an expert AI farming co-pilot. You help farmers make precise, data-driven decisions about their crops. You have access to real-time weather data, soil sensors, market prices, and agronomic knowledge. Be direct, practical, and give specific actionable recommendations with exact numbers.`;
+    const systemPrompt = `You are CropPilot, an expert AI farming co-pilot. You help farmers make precise, data-driven decisions about their crops. You have access to real-time weather data, soil sensors, market prices, and agronomic knowledge. Be direct, practical, and give specific actionable recommendations with exact numbers. When analyzing crop images, identify diseases, pests, or deficiencies and give specific treatment recommendations.`;
 
-    const groqMessages = [{ role: "system", content: systemPrompt }, ...messages];
+    const groqMessages = [{ role: "system", content: systemPrompt }];
+
+    for (const msg of messages) {
+      if (msg.role === "user" && msg.image) {
+        groqMessages.push({
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: msg.image },
+            },
+            { type: "text", text: msg.content },
+          ],
+        });
+      } else {
+        groqMessages.push(msg);
+      }
+    }
 
     let response = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: groqMessages.some((m) => Array.isArray(m.content))
+        ? "meta-llama/llama-4-scout-17b-16e-instruct"
+        : "llama-3.1-8b-instant",
       messages: groqMessages,
-      tools,
-      tool_choice: "auto",
+      tools: groqMessages.some((m) => Array.isArray(m.content))
+        ? undefined
+        : tools,
+      tool_choice: groqMessages.some((m) => Array.isArray(m.content))
+        ? undefined
+        : "auto",
       max_tokens: 1024,
     });
 
@@ -188,7 +298,11 @@ export async function POST(request) {
     const toolResults = [];
 
     let iterations = 0;
-    while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0 && iterations < 3) {
+    while (
+      assistantMessage.tool_calls &&
+      assistantMessage.tool_calls.length > 0 &&
+      iterations < 3
+    ) {
       iterations++;
       const toolCallResults = [];
       for (const tc of assistantMessage.tool_calls) {
@@ -220,13 +334,16 @@ export async function POST(request) {
       message: assistantMessage.content,
       toolsUsed: toolResults,
     });
-
   } catch (err) {
     console.error("CropPilot API error:", err);
     const isRateLimit = err?.status === 429 || err?.message?.includes("rate");
     return Response.json(
-      { message: isRateLimit ? "Too many requests — please wait 30 seconds and try again." : "Something went wrong. Please try again." },
-      { status: 200 }
+      {
+        message: isRateLimit
+          ? "Too many requests — please wait 30 seconds and try again."
+          : "Something went wrong. Please try again.",
+      },
+      { status: 200 },
     );
   }
 }

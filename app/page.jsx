@@ -31,6 +31,8 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const [pendingImage, setPendingImage] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -40,7 +42,11 @@ export default function Home() {
     const userText = text || input.trim();
     if (!userText || loading) return;
     setInput("");
-    const newMessages = [...messages, { role: "user", content: userText }];
+    const newMessages = [
+      ...messages,
+      { role: "user", content: userText, image: pendingImage },
+    ];
+    setPendingImage(null);
     setMessages(newMessages);
     setLoading(true);
     setToolsUsed([]);
@@ -94,6 +100,14 @@ export default function Home() {
       console.error("Voice error:", e.error);
     };
     recognition.start();
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPendingImage(reader.result);
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -187,10 +201,49 @@ export default function Home() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ask about your crops, weather, soil, or markets…"
+              placeholder="Ask about your crops, or upload a photo to diagnose a disease…"
               rows={1}
               disabled={loading}
             />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={handleImageUpload}
+            />
+
+            {pendingImage && (
+              <div className="image-preview">
+                <img src={pendingImage} alt="crop" />
+                <button
+                  className="remove-img"
+                  onClick={() => setPendingImage(null)}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            <button
+              className="img-btn"
+              onClick={() => fileInputRef.current.click()}
+              aria-label="Upload crop image"
+              type="button"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </button>
             <button
               className="mic-btn"
               onClick={startVoice}
@@ -512,28 +565,78 @@ export default function Home() {
             padding: 12px 16px;
           }
         }
-      .mic-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  background: rgba(122,170,92,0.1);
-  border: 1px solid rgba(122,170,92,0.2);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.15s;
-}
-.mic-btn svg {
-  width: 15px;
-  height: 15px;
-  color: #7aaa5c;
-}
-.mic-btn:hover {
-  background: rgba(122,170,92,0.2);
-  border-color: rgba(122,170,92,0.4);
-}    
+        .mic-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 9px;
+          background: rgba(122, 170, 92, 0.1);
+          border: 1px solid rgba(122, 170, 92, 0.2);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          transition: all 0.15s;
+        }
+        .mic-btn svg {
+          width: 15px;
+          height: 15px;
+          color: #7aaa5c;
+        }
+        .mic-btn:hover {
+          background: rgba(122, 170, 92, 0.2);
+          border-color: rgba(122, 170, 92, 0.4);
+        }
+        .img-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 9px;
+          background: rgba(122, 170, 92, 0.1);
+          border: 1px solid rgba(122, 170, 92, 0.2);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          transition: all 0.15s;
+        }
+        .img-btn svg {
+          width: 15px;
+          height: 15px;
+          color: #7aaa5c;
+        }
+        .img-btn:hover {
+          background: rgba(122, 170, 92, 0.2);
+          border-color: rgba(122, 170, 92, 0.4);
+        }
+        .image-preview {
+          position: relative;
+          flex-shrink: 0;
+        }
+        .image-preview img {
+          width: 40px;
+          height: 40px;
+          border-radius: 6px;
+          object-fit: cover;
+          border: 1px solid rgba(122, 170, 92, 0.3);
+        }
+        .remove-img {
+          position: absolute;
+          top: -6px;
+          right: -6px;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #1e3d12;
+          border: 1px solid rgba(122, 170, 92, 0.3);
+          color: #7aaa5c;
+          font-size: 9px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+        }
       `}</style>
     </div>
   );
